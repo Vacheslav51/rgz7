@@ -1,0 +1,168 @@
+<!DOCTYPE html> 
+<html lang="ru"> 
+<head> 
+    <meta charset="UTF-8"> 
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"> 
+    <title>Панель управления</title> 
+</head> 
+<body> 
+    <h1>Панель управления</h1> 
+    <a href="{{ url_for('logout') }}">Выйти</a> 
+ 
+    <h2>Список подписок</h2> 
+    <ul id="subscription-list"> 
+    </ul> 
+ 
+    <h2>Добавить новую подписку</h2> 
+    <form id="subscription-form"> 
+        <label for="name">Название:</label> 
+        <input type="text" id="name" name="name" required> 
+        <br> 
+        <label for="amount">Сумма:</label> 
+        <input type="number" id="amount" name="amount" required> 
+        <br> 
+        <label for="frequency">Частота:</label> 
+        <select id="frequency" name="frequency" required>
+            <option value="weekly">Еженедельно</option>
+            <option value="monthly">Ежемесячно</option>
+            <option value="yearly">Ежегодно</option>
+        </select>
+        <br> 
+        <label for="start_date">Дата начала:</label> 
+        <input type="date" id="start_date" name="start_date" required> 
+        <br> 
+        <input type="hidden" id="user_id" name="user_id" value="{{ current_user.id }}"> 
+        <button type="submit">Добавить подписку</button> 
+    </form> 
+
+    <div id="editSubscriptionForm" style="display: none;">
+        <h2>Редактировать подписку</h2>
+        <label for="name">Название:</label>
+        <input type="text" id="name1" required>
+        
+        <label for="amount">Сумма:</label>
+        <input type="number" id="amount1" required>
+        
+        <select id="frequency1" required>
+            <option value="weekly">Еженедельно</option>
+            <option value="monthly">Ежемесячно</option>
+            <option value="yearly">Ежегодно</option>
+        </select>
+        
+        <label for="start_date">Дата начала:</label>
+        <input type="date" id="start_date1" required>
+        
+        <button id="saveButton">Сохранить</button>
+        <button onclick="closeEditForm()">Отмена</button>
+    </div>
+
+    <script> 
+        document.addEventListener('DOMContentLoaded', function() { 
+            const userId = document.getElementById('user_id').value; 
+     
+            // Загрузка подписок  
+            fetch(`/subscriptions?user_id=${userId}`) 
+                .then(response => response.json()) 
+                .then(data => { 
+                    const subscriptionList = document.getElementById('subscription-list'); 
+                    data.forEach(sub => { 
+                        const li = document.createElement('li'); 
+                        li.textContent = `Название: ${sub.name}, Стоимость: ${sub.amount}, Периодичность: ${sub.frequency}, Начало: ${sub.start_date}`;
+                        
+                        // Кнопка редактирования
+                        const editButton = document.createElement('button');
+                        editButton.textContent = 'Редактировать';
+                        editButton.onclick = () => editSubscription(sub);
+                        li.appendChild(editButton);
+
+                        // Кнопка удаления
+                        const deleteButton = document.createElement('button');
+                        deleteButton.textContent = 'Удалить';
+                        deleteButton.onclick = () => deleteSubscription(sub.id);
+                        li.appendChild(deleteButton);
+
+                        subscriptionList.appendChild(li); 
+                    }); 
+                }); 
+
+            // Добавление новой подписки  
+            document.getElementById('subscription-form').addEventListener('submit', function(event) { 
+                event.preventDefault(); 
+                const formData = new FormData(this); 
+                const data = Object.fromEntries(formData); 
+
+                fetch('/subscriptions', { 
+                    method: 'POST', 
+                    headers: { 
+                        'Content-Type': 'application/json', 
+                    }, 
+                    body: JSON.stringify(data), 
+                }) 
+                .then(response => response.json()) 
+                .then(data => { 
+                    alert(data.message); 
+                    location.reload(); 
+                }); 
+            }); 
+
+            // Функция для открытия формы редактирования
+            function editSubscription(subscription) {
+                // Заполнение формы данными подписки
+                document.getElementById('name1').value = subscription.name;
+                document.getElementById('amount1').value = subscription.amount;
+                document.getElementById('frequency1').value = subscription.frequency;
+                document.getElementById('start_date1').value = subscription.start_date;
+
+                // Показываем форму редактирования
+                document.getElementById('editSubscriptionForm').style.display = 'block';
+                
+                const submitButton = document.getElementById('saveButton'); 
+                submitButton.textContent = 'Обновить подписку'; 
+                
+                // Обновляем обработчик события для кнопки
+                submitButton.onclick = function(event) { 
+                    event.preventDefault(); 
+                    
+                    const updatedData = { 
+                        amount: document.getElementById('amount1').value, 
+                        frequency: document.getElementById('frequency1').value, 
+                        start_date: document.getElementById('start_date1').value, 
+                    }; 
+
+                    fetch(`/subscriptions/${subscription.id}`, { 
+                        method: 'PUT', 
+                        headers: { 
+                            'Content-Type': 'application/json', 
+                        }, 
+                        body: JSON.stringify(updatedData), 
+                    }) 
+                    .then(response => response.json()) 
+                    .then(data => { 
+                    alert(data.message); 
+                    location.reload(); 
+                }); 
+                }; 
+            };
+
+            // Функция для закрытия формы редактирования
+            function closeEditForm() {
+                document.getElementById('editSubscriptionForm').style.display = 'none';
+            }
+            
+            // Функция удаления подписки
+            window.deleteSubscription = function(subscriptionId) {
+                if (confirm('Вы уверены, что хотите удалить эту подписку?')) {
+                    fetch(`/subscriptions/${subscriptionId}`, {
+                        method: 'DELETE',
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        alert(data.message);
+                        location.reload(); 
+                    });
+                }
+            };
+        }); 
+    </script>     
+</body> 
+</html>
